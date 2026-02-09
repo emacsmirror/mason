@@ -269,22 +269,20 @@ To be used with `mason--process' and `mason--process-sync'."
 (defun mason--update-target (then)
   "Update target and call THEN."
   (let* ((reg-dir (mason--expand-child-file-name "registry" mason-dir))
-         (out-file (mason--expand-child-file-name "target" reg-dir))
-         output)
+         (out-file (mason--expand-child-file-name "target" reg-dir)))
     (when (file-exists-p out-file)
       (setq mason--target (ignore-errors (mason--read-data out-file))))
     (if (not (null mason--target))
         (funcall then)
       (mason--process
-        (mason--emacs-cmd '(message "%S" (mason--get-target)))
-        :filter (lambda (_ o) (setq output (concat output o)))
+        (mason--emacs-cmd
+          `(make-directory ,reg-dir t)
+          `(with-temp-file ,out-file
+             (prin1 (mason--get-target) (current-buffer))))
         :then
         (lambda (success)
           (if (not success) (error "Updating target failed")
-            (setq mason--target (read output))
-            (make-directory reg-dir t)
-            (with-temp-file out-file
-              (insert output))
+            (setq mason--target (mason--read-data out-file))
             (funcall then)))))))
 
 (defun mason--target-match (str)
